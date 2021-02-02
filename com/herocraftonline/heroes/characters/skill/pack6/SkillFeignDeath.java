@@ -1,6 +1,7 @@
 package com.ardea.heroes.skills;
 
 import com.herocraftonline.heroes.api.events.HeroRegainHealthEvent;
+import com.herocraftonline.heroes.characters.effects.common.InvisibleEffect;
 import com.herocraftonline.heroes.characters.skill.*;
 import org.bukkit.*;
 import org.bukkit.configuration.ConfigurationSection;
@@ -20,9 +21,10 @@ public class SkillFeignDeath extends PassiveSkill {
 
     public SkillFeignDeath(Heroes plugin) {
         super(plugin, "FeignDeath");
-        this.setDescription("You have a $1% chance to gain $2% health when you would otherwise have died. The skill can only trigger once every $3 seconds");
-        this.setTypes(new SkillType[]{SkillType.HEALING, SkillType.BUFFING});
+        this.setDescription("You have a $1% chance to evade death. Instead of dying, you gain $2% health when you would otherwise have died.");
+        this.setTypes(new SkillType[]{SkillType.HEALING, SkillType.BUFFING, SkillType.ABILITY_PROPERTY_DARK, SkillType.STEALTHY, SkillType.ABILITY_PROPERTY_ILLUSION});
         this.setIdentifiers(new String[]{"skill feigndeath"});
+        this.setNotes(new String[]{"Note: Taking damage, moving, or causing damage removes the effect"});
         Bukkit.getServer().getPluginManager().registerEvents(new SkillFeignDeath.FeignDeathListener(this), plugin);
     }
 
@@ -32,6 +34,9 @@ public class SkillFeignDeath extends PassiveSkill {
         node.set("health-percent-on-rebirth", 0.5D);
         node.set(SkillSetting.COOLDOWN.node(), 600000);
         node.set("randomness", 20);
+        node.set(SkillSetting.DURATION.node(), 30000);
+        node.set("detection-range", 0);
+        node.set("max-move-distance", 1.0D);
         return node;
     }
 
@@ -72,20 +77,21 @@ public class SkillFeignDeath extends PassiveSkill {
                             hero.heal((Double) hrh.getDelta());
                             long cooldown = (long) (SkillConfigManager.getUseSetting(hero, this.skill, SkillSetting.COOLDOWN.node(), 600000, false));
                             hero.setCooldown("FeignDeath", cooldown + System.currentTimeMillis());
-                            player.getWorld().playEffect(player.getLocation(), Effect.SMOKE, 3);
                             broadcast(hero.getPlayer().getLocation(), ChatColor.GRAY + "[" + ChatColor.DARK_RED + "Skill" + ChatColor.GRAY + "] " + ChatColor.DARK_RED + hero.getName() + ChatColor.GRAY + " has risen from the ashes like a " + ChatColor.WHITE + "FeignDeath" + ChatColor.GRAY + "!");
                             //teleport part below
                             Location loc1 = player.getLocation();
                             int randomness = SkillConfigManager.getUseSetting(hero, this.skill, "randomness", 20, false);
                             int x = loc1.getBlockX() + random.nextInt(randomness);
                             int z = loc1.getBlockZ() + random.nextInt(randomness);
-                            Double highestBlock = (double)player.getWorld().getHighestBlockYAt(loc1) + 1;
+                            Double highestBlock = (double)player.getWorld().getHighestBlockYAt(loc1) + 2;
                             loc1.setY(highestBlock);
                             loc1.setX(x);
                             loc1.setZ(z);
                             player.teleport(loc1);
                             player.getWorld().playSound(player.getLocation(), Sound.BLOCK_PORTAL_TRAVEL, 0.5F, 1.0F);
                             //invisibility part below
+                            long duration = (long)SkillConfigManager.getUseSetting(hero, this.skill, SkillSetting.DURATION, 30000, false);
+                            hero.addEffect(new InvisibleEffect(this.skill, player, duration));
                         }
                     }
                 }
